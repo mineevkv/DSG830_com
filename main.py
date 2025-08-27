@@ -17,10 +17,10 @@ def get_usb_resource(logs = True):
         if logs: print("Available resources:", resources)
         
         # Filter for USB resources (looking for RIGOL DSG830 pattern)
-        usb_resources = [res for res in resources if 'USB' in res and ('DSG' in res or '0x1AB1' in res)]
+        usb_resources = [res for res in resources if 'USB' in res]
         
         if not usb_resources:
-            print("No USB instruments found with RIGOL DSG pattern.")
+            print("No USB instruments found with RIGOL USB pattern.")
             return None
         
         if logs: print(f"Found USB resources: {usb_resources}")
@@ -43,9 +43,6 @@ def get_usb_resource(logs = True):
                 
                 if logs: print(f"Success! Instrument identified as: {idn}")
                 
-                # Check if it's a DSG830
-                if 'DSG830' in idn:
-                   if logs: print("Confirmed: RIGOL DSG830 series signal generator")
                 
                 return inst
                 
@@ -182,6 +179,7 @@ def get_lan_resource(logs = True , ip = False):
             if logs: print(f"Trying to connect to: {ip}")
             
             inst = rm.open_resource(visa_string_lan)
+            print(f'{inst}')
             inst.timeout = 10000  # 10-second timeout
             inst.read_termination = '\n'  # Common termination characters
             inst.write_termination = '\n'
@@ -256,14 +254,16 @@ def send_scpi_command(inst, command):
 if __name__ == "__main__":
     os.system('cls')
 
-    device_ip = '192.168.127.78' # static IP for DSG830
+    device_ip_DSG830 = '192.168.127.78' # static IP for DSG830
+    device_ip_RSA5065N = '192.168.127.64' # static IP for RSA5065N
     visa_string_usb = 'USB0::0x1AB1::0x099C::DSG8E263200078::INSTR' # VISA USB Connect String
 
-    inst = get_lan_resource(ip=device_ip, logs=False)
+    # inst = get_usb_resource()
+    inst = get_lan_resource(ip = device_ip_RSA5065N)
 
     if inst:
-        send_scpi_command(inst, ":SYST:DISP:UPD?")
-        send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD?")
-        # send_scpi_command(inst, ":OUTP?")
+        # send_scpi_command(inst, ":SYST:DISP:UPD?")
+        # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess 192.168.127.64")
+        send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
     else:
         print("\nInstrument identification failed.")
