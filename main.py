@@ -55,7 +55,6 @@ def get_visa_resource(visa_string):
             time.sleep(0.1)
             
             idn = inst.query('*IDN?').strip()
-            
             logger.info(f"Instrument identified as: {idn}")
             
             return inst
@@ -132,13 +131,27 @@ if __name__ == "__main__":
     visa_string_usb_DSG830 = 'USB0::0x1AB1::0x099C::DSG8E263200078::INSTR'
     visa_string_usb_RSA5065N = 'USB0::0x1AB1::0x0968::RSA5F251600073::INSTR'
 
-    visa_string_ip =  get_visa_string_ip(ip_RSA5065N)
+    visa_string_ip =  get_visa_string_ip(ip_DSG830)
 
-    inst = get_visa_resource(visa_string_usb_RSA5065N)
+    inst = get_visa_resource(visa_string_ip)
 
     if inst:
+        pass
         # send_scpi_command(inst, ":SYST:DISP:UPD?")
         # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess 192.168.127.64")
-        send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
+        # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
+
+        # send_scpi_command(inst, ":SYSTem:COMMunication:LAN:IP:MANual?")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD?")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD 192.168.127.78")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD?")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK?")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK 255.255.255.0")
+        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK?")
+        # send_scpi_command(inst, ":SYSTem:COMMunication:LAN:IP:SET")
+
+        send_scpi_command(inst, "*IDN?")
+
+        
     else:
         logger.error("Instrument identification failed")
