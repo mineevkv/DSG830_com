@@ -4,6 +4,8 @@ import os
 import logging
 import colorlog
 
+from rsa5065n import init_command as rsa_init
+
 # Create colored formatter
 formatter = colorlog.ColoredFormatter(
     "%(asctime)s %(log_color)s %(message)s",
@@ -136,7 +138,6 @@ if __name__ == "__main__":
     inst = get_visa_resource(visa_string_ip)
 
     if inst:
-        pass
         # send_scpi_command(inst, ":SYST:DISP:UPD?")
         # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess 192.168.127.64")
         # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
@@ -149,6 +150,8 @@ if __name__ == "__main__":
         # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK 255.255.255.0")
         # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK?")
         # send_scpi_command(inst, ":SYSTem:COMMunication:LAN:IP:SET")
+        # for scpi_command in rsa_init:
+        #     send_scpi_command(inst, scpi_command)
 
         send_scpi_command(inst, "*IDN?")
 
