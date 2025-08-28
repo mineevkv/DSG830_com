@@ -116,7 +116,7 @@ def send_scpi_command(inst, command):
         else:
             response = f"bytes: {inst.write(command)}"
             command_type = 'WRITE'
-        logger.info(f"Result of sending {command_type} command >> {command} --> {response}")
+        logger.info(f"{inst} sending {command_type} command >> {command} --> {response}")
         
         return response
     
@@ -133,28 +133,11 @@ if __name__ == "__main__":
     visa_string_usb_DSG830 = 'USB0::0x1AB1::0x099C::DSG8E263200078::INSTR'
     visa_string_usb_RSA5065N = 'USB0::0x1AB1::0x0968::RSA5F251600073::INSTR'
 
-    visa_string_ip =  get_visa_string_ip(ip_DSG830)
 
-    inst = get_visa_resource(visa_string_ip)
+    dsg = get_visa_resource(get_visa_string_ip(ip_DSG830)) # digital signal generator DSG830
+    rsa = get_visa_resource(get_visa_string_ip(ip_RSA5065N)) #Real-time Spectrum Analyzer RSA5065N
+    rsa_usb = get_visa_resource(visa_string_usb_RSA5065N) #Real-time Spectrum Analyzer RSA5065N
 
-    if inst:
-        # send_scpi_command(inst, ":SYST:DISP:UPD?")
-        # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess 192.168.127.64")
-        # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
-
-        # send_scpi_command(inst, ":SYSTem:COMMunication:LAN:IP:MANual?")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD?")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD 192.168.127.78")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:ADD?")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK?")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK 255.255.255.0")
-        # send_scpi_command(inst, ":SYST:COMM:LAN:IP:SUB:MASK?")
-        # send_scpi_command(inst, ":SYSTem:COMMunication:LAN:IP:SET")
-        # for scpi_command in rsa_init:
-        #     send_scpi_command(inst, scpi_command)
-
-        send_scpi_command(inst, "*IDN?")
-
-        
-    else:
-        logger.error("Instrument identification failed")
+    send_scpi_command(dsg, "*IDN?")
+    send_scpi_command(rsa, "*IDN?")
+    send_scpi_command(rsa_usb, "*IDN?")
