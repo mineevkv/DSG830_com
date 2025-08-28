@@ -1,232 +1,104 @@
 import pyvisa
 import time
 import os
+import logging
+import colorlog
 
-def get_usb_resource(logs = True):
-    """
-    Attempts to identify a USB-connected RIGOL DSG830 signal generator
-    by querying its identification string.
-    """
-    try:
-        # Create a resource manager
-        rm = pyvisa.ResourceManager()
-        if logs: print(f"Using backend: {rm}")
-        
-        # List all available resources
-        resources = rm.list_resources()
-        if logs: print("Available resources:", resources)
-        
-        # Filter for USB resources (looking for RIGOL DSG830 pattern)
-        usb_resources = [res for res in resources if 'USB' in res]
-        
-        if not usb_resources:
-            print("No USB instruments found with RIGOL USB pattern.")
-            return None
-        
-        if logs: print(f"Found USB resources: {usb_resources}")
-        
-        for usb_address in usb_resources:
-            try:
-                if logs: print(f"Trying to connect to: {usb_address}")
-                
-                # Open the resource with appropriate settings
-                inst = rm.open_resource(usb_address)
-                inst.timeout = 10000  # 10-second timeout
-                inst.read_termination = '\n'  # Common termination character
-                inst.write_termination = '\n'
-                
-                # Add a small delay before querying
-                time.sleep(0.1)
-                
-                # Query the instrument identification
-                idn = inst.query('*IDN?').strip()
-                
-                if logs: print(f"Success! Instrument identified as: {idn}")
-                
-                
-                return inst
-                
-            except pyvisa.errors.VisaIOError as e:
-                print(f"Error communicating with {usb_address}: {e}")
-                print("Trying alternative termination characters...")
-                
-                # Try different termination characters
-                for read_term, write_term in [('\r\n', '\r\n'), ('\r', '\r'), ('\n', '\n')]:
-                    try:
-                        if 'inst' in locals():
-                            inst.close()
-                        
-                        inst = rm.open_resource(usb_address)
-                        inst.timeout = 10000
-                        inst.read_termination = read_term
-                        inst.write_termination = write_term
-                        
-                        time.sleep(0.1)
-                        idn = inst.query('*IDN?').strip()
-                        print(f"Success with termination {repr(read_term)}/{repr(write_term)}: {idn}")
-                        return inst
-                        
-                    except pyvisa.errors.VisaIOError:
-                        continue
-                
-                print(f"All termination character combinations failed for {usb_address}")
-                
-            except Exception as e:
-                print(f"Unexpected error with {usb_address}: {e}")
-    
-    except Exception as e:
-        print(f"Failed to initialize resource manager: {e}")
-    
-        print("Could not identify any USB instruments.")
-        return None
-    
+# Create colored formatter
+formatter = colorlog.ColoredFormatter(
+    "%(asctime)s %(log_color)s %(message)s",
+    datefmt='%H:%M:%S',  # Define the date/time format
+    reset=True,
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    },
+    secondary_log_colors={},
+    style='%'
+)
 
+# Setup handler
+handler = colorlog.StreamHandler()
+handler.setFormatter(formatter)
+
+# Setup logger
+logger = colorlog.getLogger(__name__)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+def get_visa_resource(visa_string):
     """
-    Attempts to identify a USB-connected RIGOL DSG830 signal generator
-    by querying its identification string.
+    Check connect to remote instrument
     """
-    try:
-        # Create a resource manager
-        rm = pyvisa.ResourceManager()
-        if logs: print(f"Using backend: {rm}")
-        
-        # List all available resources
-        resources = rm.list_resources()
-        if logs: 
-            print("Available resources:", resources)
-        
-        # Filter for USB resources (looking for RIGOL DSG830 pattern)
-        usb_resources = [res for res in resources if 'USB' in res and ('DSG' in res or '0x1AB1' in res)]
-        
-        if not usb_resources:
-            print("No USB instruments found with RIGOL DSG pattern.")
-            return None
-        
-        if logs: print(f"Found USB resources: {usb_resources}")
-        
-        for usb_address in usb_resources:
-            try:
-                if logs: print(f"Trying to connect to: {usb_address}")
-                
-                # Open the resource with appropriate settings
-                inst = rm.open_resource(usb_address)
-                inst.timeout = 10000  # 10-second timeout
-                inst.read_termination = '\n'  # Common termination character
-                inst.write_termination = '\n'
-                
-                # Add a small delay before querying
-                time.sleep(0.1)
-                
-                # Query the instrument identification
-                idn = inst.query('*IDN?').strip()
-                
-                if logs: print(f"Success! Instrument identified as: {idn}")
-                
-                # Check if it's a DSG830
-                if 'DSG830' in idn:
-                   if logs: print("Confirmed: RIGOL DSG830 series signal generator")
-                
-                return inst
-                
-            except pyvisa.errors.VisaIOError as e:
-                print(f"Error communicating with {usb_address}: {e}")
-                print("Trying alternative termination characters...")
-                
-                # Try different termination characters
-                for read_term, write_term in [('\r\n', '\r\n'), ('\r', '\r'), ('\n', '\n')]:
-                    try:
-                        if 'inst' in locals():
-                            inst.close()
-                        
-                        inst = rm.open_resource(usb_address)
-                        inst.timeout = 10000
-                        inst.read_termination = read_term
-                        inst.write_termination = write_term
-                        
-                        time.sleep(0.1)
-                        idn = inst.query('*IDN?').strip()
-                        print(f"Success with termination {repr(read_term)}/{repr(write_term)}: {idn}")
-                        return inst
-                        
-                    except pyvisa.errors.VisaIOError:
-                        continue
-                
-                print(f"All termination character combinations failed for {usb_address}")
-                
-            except Exception as e:
-                print(f"Unexpected error with {usb_address}: {e}")
-    
-    except Exception as e:
-        print(f"Failed to initialize resource manager: {e}")
-    
-        print("Could not identify any USB instruments.")
-        return None
-    
-def get_lan_resource(logs = True , ip = False):
-    """
-    Check LAN-connect to remote instrument
-    """
-    if not ip:
-        print("Check IP address")
-        return False
+    if 'TCPIP' or 'USB' in visa_string:
+        com_interface = visa_string.split('::')[0]
+    else:
+        logger.error("Invalid VISA string format")
+        return
 
     try:
         # Create a resource manager
         rm = pyvisa.ResourceManager()
-        visa_string_lan = f'TCPIP0::{ip}::INSTR'
         
         try:
-            if logs: print(f"Trying to connect to: {ip}")
+            logger.info(f"Trying to connect to: {com_interface}")
             
-            inst = rm.open_resource(visa_string_lan)
-            print(f'{inst}')
+            inst = rm.open_resource(visa_string)
+            logger.info(f'{inst}')
             inst.timeout = 10000  # 10-second timeout
             inst.read_termination = '\n'  # Common termination characters
             inst.write_termination = '\n'
             
-            # Add a small delay before querying
             time.sleep(0.1)
             
-            # Query the instrument identification
             idn = inst.query('*IDN?').strip()
             
-            if logs: print(f"Success! Instrument identified as: {idn}")
+            logger.info(f"Instrument identified as: {idn}")
             
             return inst
             
         except pyvisa.errors.VisaIOError as e:
-            print(f"Error communicating with {ip}: {e}")
-            print("Trying alternative termination characters...")
+            logger.error(f"Error communicating with {com_interface}: {e}")
+            logger.info("Trying alternative termination characters...")
             
             # Try different termination characters
-            for read_term, write_term in [('\r\n', '\r\n'), ('\r', '\r'), ('\n', '\n')]:
+            for read_term, write_term in [('\r\n', '\r\n'), ('\r', '\r'), ('\n', '\n')]: # \r\n - Windows standard, \r - old \n - modern instruments
                 try:
                     if 'inst' in locals():
                         inst.close()
                     
-                    inst = rm.open_resource(visa_string_lan)
+                    inst = rm.open_resource(visa_string)
                     inst.timeout = 10000
                     inst.read_termination = read_term
                     inst.write_termination = write_term
                     
                     time.sleep(0.1)
                     idn = inst.query('*IDN?').strip()
-                    print(f"Success with termination {repr(read_term)}/{repr(write_term)}: {idn}")
+                    logger.info(f"Success with termination {repr(read_term)}/{repr(write_term)}: {idn}")
                     return inst
                     
                 except pyvisa.errors.VisaIOError:
                     continue
             
-            print(f"All termination character combinations failed for {ip}")
+            logger.warning(f"All termination character combinations failed for {com_interface}")
             
         except Exception as e:
-            print(f"Unexpected error with {ip}: {e}")
+            logger.error(f"Unexpected error with {com_interface}: {e}")
     
     except Exception as e:
-        print(f"Failed to initialize resource manager: {e}")
+        logger.error(f"Failed to initialize resource manager: {e}")
     
-        print("Could not identify any LAN instruments.")
-        return None
+        logger.warning("Could not identify any instruments.")
+        return
+
+def get_visa_string_ip(ip):
+    """
+    Create VISA string for LAN connection
+    """
+    return f'TCPIP0::{ip}::INSTR'
 
 def send_scpi_command(inst, command):
     """
@@ -238,32 +110,35 @@ def send_scpi_command(inst, command):
         
         # Query the instrument identification
         if command.strip().endswith("?"):
-            idn = inst.query(command).strip()
+            response = inst.query(command).strip()
             command_type = 'QUERY'
         else:
-            idn = f"ok : {inst.write(command)}"
+            response = f"bytes: {inst.write(command)}"
             command_type = 'WRITE'
-        print(f"Result of sending {command_type} command >> {command} --> {idn}")
+        logger.info(f"Result of sending {command_type} command >> {command} --> {response}")
         
-        return idn
+        return response
     
     except pyvisa.errors.VisaIOError as e:
-        print(f"Error communicating with instrument: {e}")
+        logger.error(f"Error communicating with instrument: {e}")
         return None
 
 if __name__ == "__main__":
     os.system('cls')
 
-    device_ip_DSG830 = '192.168.127.78' # static IP for DSG830
-    device_ip_RSA5065N = '192.168.127.64' # static IP for RSA5065N
-    visa_string_usb = 'USB0::0x1AB1::0x099C::DSG8E263200078::INSTR' # VISA USB Connect String
+    ip_DSG830 = '192.168.127.78' # static IP for DSG830
+    ip_RSA5065N = '192.168.127.64' # static IP for RSA5065N
 
-    # inst = get_usb_resource()
-    inst = get_lan_resource(ip = device_ip_RSA5065N)
+    visa_string_usb_DSG830 = 'USB0::0x1AB1::0x099C::DSG8E263200078::INSTR'
+    visa_string_usb_RSA5065N = 'USB0::0x1AB1::0x0968::RSA5F251600073::INSTR'
+
+    visa_string_ip =  get_visa_string_ip(ip_RSA5065N)
+
+    inst = get_visa_resource(visa_string_usb_RSA5065N)
 
     if inst:
         # send_scpi_command(inst, ":SYST:DISP:UPD?")
         # send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess 192.168.127.64")
         send_scpi_command(inst, ":SYSTem:COMMunicate:LAN:SELF:IP:ADDRess?")
     else:
-        print("\nInstrument identification failed.")
+        logger.error("Instrument identification failed")
