@@ -4,7 +4,10 @@ import os
 import logging
 import colorlog
 
-from rsa5065n import init_command as rsa_init
+import numpy as np
+import matplotlib.pyplot as plt
+
+# from dsg830 import init_command as dsg_init
 
 # Create colored formatter
 formatter = colorlog.ColoredFormatter(
@@ -29,7 +32,17 @@ handler.setFormatter(formatter)
 # Setup logger
 logger = colorlog.getLogger(__name__)
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
+
+def press_single_button(rsa):
+    """
+    Emulates pressing the front panel 'Single' button"""
+
+    send_scpi_command(rsa, ":INITiate:CONTinuous OFF")
+    send_scpi_command(rsa, ":TRIGger:SEQuence:SOURce IMMediate")
+    send_scpi_command(rsa, ":INITiate:IMMediate")
+        
+        
 
 def get_visa_resource(visa_string):
     """
@@ -107,7 +120,7 @@ def send_scpi_command(inst, command):
     """
     try:
         # Add a small delay before querying
-        time.sleep(0.1)
+        time.sleep(0.01)
         
         # Query the instrument identification
         if command.strip().endswith("?"):
@@ -134,10 +147,105 @@ if __name__ == "__main__":
     visa_string_usb_RSA5065N = 'USB0::0x1AB1::0x0968::RSA5F251600073::INSTR'
 
 
-    dsg = get_visa_resource(get_visa_string_ip(ip_DSG830)) # digital signal generator DSG830
+    dsg = get_visa_resource(get_visa_string_ip(ip_DSG830)) # Digital signal generator DSG830
     rsa = get_visa_resource(get_visa_string_ip(ip_RSA5065N)) #Real-time Spectrum Analyzer RSA5065N
-    rsa_usb = get_visa_resource(visa_string_usb_RSA5065N) #Real-time Spectrum Analyzer RSA5065N
 
-    send_scpi_command(dsg, "*IDN?")
-    send_scpi_command(rsa, "*IDN?")
-    send_scpi_command(rsa_usb, "*IDN?")
+    freq_start = 2100e6
+    freq_end = 2900e6
+
+    frequencies = np.linspace(freq_start, freq_end, 9, dtype=int)
+
+    meas_freq = []
+    meas_level = []
+
+
+    send_scpi_command(rsa, ":TRACe:CLEar:ALL")
+
+    
+    for frequency in frequencies:
+        send_scpi_command(dsg, f":FREQ {frequency}")
+        time.sleep(0.5)
+
+        # send_scpi_command(dsg, ":LEV -15dBm")
+        # send_scpi_command(dsg, ":OUTP ON")
+
+        # time.sleep(1)
+        send_scpi_command(rsa, f":SENSE:FREQUENCY:CENTER {frequency}")
+        send_scpi_command(rsa, f":SENSE:FREQUENCY:SPAN {1e5}")
+        send_scpi_command(rsa,f":SENSE:BANDWIDTH:RESOLUTION {1e3}")
+        send_scpi_command(rsa,f":SENSE:BANDWIDTH:VIDEO {1e3}")
+
+
+        press_single_button(rsa)
+        delay = float(send_scpi_command(rsa, ":SENSe:SWEep:TIME?")) + 0.5
+        time.sleep(delay)
+
+        send_scpi_command(rsa, ":CALCulate:MARKer1:MAXimum:MAX")
+        time.sleep(0.1)
+
+        send_scpi_command(rsa, f":SENSE:FREQUENCY:CENTER {send_scpi_command(rsa, ":CALCulate:MARKer1:X?")}")
+        send_scpi_command(rsa, f":SENSE:FREQUENCY:SPAN {1e4}")
+        send_scpi_command(rsa,f":SENSE:BANDWIDTH:RESOLUTION {100}")
+        send_scpi_command(rsa,f":SENSE:BANDWIDTH:VIDEO {100}")
+
+        press_single_button(rsa)
+        delay = float(send_scpi_command(rsa, ":SENSe:SWEep:TIME?")) + 0.5
+    
+        time.sleep(delay)
+        
+        send_scpi_command(rsa, ":CALCulate:MARKer1:MAXimum:MAX")
+        time.sleep(0.1)
+
+        meas_freq.append(float(send_scpi_command(rsa, ":CALCulate:MARKer1:X?")))
+        meas_level.append(float(send_scpi_command(rsa, ":CALCulate:MARKer1:Y?")))
+
+
+
+
+    # Create the plot with professional styling
+    plt.style.use('seaborn-v0_8')  # Modern and clean style
+
+    # Create figure and axis with custom size
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot your data with styling
+    ax.plot(meas_freq, meas_level, 
+            linewidth=2.5, 
+            color='#2E86AB',  # Nice blue color
+            marker='o', 
+            markersize=4, 
+            markerfacecolor='#F24236',  # Red markers
+            markeredgewidth=1,
+            markeredgecolor='white',
+            alpha=0.8)
+
+    # Customize labels and title
+    ax.set_xlabel('Frequency (MHz)', fontsize=14, fontweight='bold', labelpad=15)
+    ax.set_ylabel('Level (dBm)', fontsize=14, fontweight='bold', labelpad=15)
+    ax.set_title('Frequency Response Analysis', fontsize=16, fontweight='bold', pad=20)
+
+    # Customize grid
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+
+    # Customize ticks
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:.0f}".format(x/1e6)))  # Clean frequency formatting in MHz
+
+    # Add some padding around the data
+    ax.margins(x=0.05, y=0.1)
+
+    # Customize spines (borders)
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.5)
+        spine.set_color('gray')
+
+    # Add a legend if you have multiple datasets
+    # ax.legend(['Measurement Data'], loc='best', fontsize=12)
+
+    # Improve layout
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    
